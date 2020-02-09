@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -12,16 +13,30 @@ import (
 var (
 	optRegion      string
 	optClusterName string
+
+	optShowVersion bool
+	Version        string
+	Revision       string
 )
 
 func init() {
 	flag.StringVar(&optRegion, "region", "", "target cluster region")
 	flag.StringVar(&optClusterName, "cluster", "default", "target cluster name")
 
+	flag.BoolVar(&optShowVersion, "version", false, "show version info")
 	flag.Parse()
 }
 
+func showVersion() {
+	fmt.Printf("%s %s", Version, Revision)
+}
+
 func main() {
+	if optShowVersion {
+		showVersion()
+		return
+	}
+
 	clusterName := optClusterName
 	c := &aws.Config{}
 	if optRegion != "" {
