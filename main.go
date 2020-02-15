@@ -24,7 +24,7 @@ var (
 func init() {
 	flag.StringVar(&optRegion, "region", "", "target cluster region")
 	flag.StringVar(&optClusterName, "cluster", "default", "target cluster name")
-	flag.Int64Var(&optInterval, "interval", 0, "request interval by node")
+	flag.Int64Var(&optInterval, "interval", 1, "request interval by node")
 
 	flag.BoolVar(&optShowVersion, "version", false, "show version info")
 	flag.Parse()
