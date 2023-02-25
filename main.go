@@ -1,14 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 )
 
 var (
@@ -41,13 +42,21 @@ func main() {
 	}
 
 	clusterName := optClusterName
-	c := &aws.Config{}
-	if optRegion != "" {
-		c.Region = aws.String(optRegion)
-	}
-	svc := ecs.New(session.New(), c)
 
-	containerInstanceArns, err := getClusterInstanceArns(svc, clusterName)
+	ctx := context.TODO()
+	var cfg aws.Config
+	var err error
+	if optRegion != "" {
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(optRegion))
+	} else {
+		cfg, err = config.LoadDefaultConfig(ctx)
+	}
+	if err != nil {
+		log.Fatalf("failed load aws client: %v", err)
+	}
+	svc := ecs.NewFromConfig(cfg)
+
+	containerInstanceArns, err := getClusterInstanceArns(ctx, svc, clusterName)
 	if err != nil {
 		log.Fatalf("failed get container instance in %s cluster: %v", clusterName, err)
 	}
@@ -57,7 +66,7 @@ func main() {
 	}
 
 	for _, arn := range containerInstanceArns {
-		err = updateContainerAgent(svc, clusterName, arn)
+		err = updateContainerAgent(ctx, svc, clusterName, arn)
 		if err != nil {
 			log.Printf("failed update container agent that on %s in %s cluster: %v", arn, clusterName, err)
 		} else {
@@ -70,31 +79,31 @@ func main() {
 	}
 }
 
-func getClusterInstanceArns(svc *ecs.ECS, clusterName string) ([]string, error) {
+func getClusterInstanceArns(ctx context.Context, svc *ecs.Client, clusterName string) ([]string, error) {
 	input := &ecs.ListContainerInstancesInput{
 		Cluster: aws.String(clusterName),
 	}
 
-	result, err := svc.ListContainerInstances(input)
+	result, err := svc.ListContainerInstances(ctx, input)
 	if err != nil {
 		return nil, err
 	}
 
 	arns := make([]string, 0, len(result.ContainerInstanceArns))
 	for _, inst := range result.ContainerInstanceArns {
-		arns = append(arns, *inst)
+		arns = append(arns, inst)
 	}
 
 	return arns, nil
 }
 
-func updateContainerAgent(svc *ecs.ECS, clusterName, arn string) error {
+func updateContainerAgent(ctx context.Context, svc *ecs.Client, clusterName, arn string) error {
 	input := &ecs.UpdateContainerAgentInput{
 		Cluster:           aws.String(clusterName),
 		ContainerInstance: aws.String(arn),
 	}
 
-	_, err := svc.UpdateContainerAgent(input)
+	_, err := svc.UpdateContainerAgent(ctx, input)
 	if err != nil {
 		return err
 	}
